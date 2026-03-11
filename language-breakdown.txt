@@ -1,0 +1,176 @@
+================================================================
+  WHAT LANGUAGES ARE USED IN BOOKSHELF-FINAL.HTML?
+  A plain-English guide for non-coders
+================================================================
+
+Here's something that might surprise you: even though the
+bookshelf visualisation is a single file ending in ".html",
+it actually contains three completely different coding
+languages inside it — all working together.
+
+Think of it like a building. The HTML is the steel frame,
+the CSS is the interior design, and the JavaScript is the
+electrical system. They live in the same building but do
+very different jobs.
+
+----------------------------------------------------------------
+
+LANGUAGE 1: HTML  (about 6% of the file)
+------------------------------------------
+
+Full name: HyperText Markup Language
+
+What it does:
+HTML is the skeleton of the page. It defines the basic
+building blocks — things like "there is a button here",
+"there is a text box here", "here is where the shelf
+will go". It doesn't decide what anything looks like or
+how it behaves; it just says what exists.
+
+What it looks like:
+  <button>Back to Library</button>
+  <div id="shelfView"></div>
+
+How to spot it:
+HTML is made up of "tags" — words surrounded by angle
+brackets like <div>, <button>, <input>. Most tags come
+in pairs: an opening tag <div> and a closing tag </div>.
+
+Why there's so little of it (only 6%):
+This visualisation builds most of its content dynamically
+— meaning JavaScript writes the HTML on the fly as soon
+as the data loads. So the HTML file itself only needs a
+handful of "empty containers" that JavaScript will later
+fill in.
+
+----------------------------------------------------------------
+
+LANGUAGE 2: CSS  (about 39% of the file)
+------------------------------------------
+
+Full name: Cascading Style Sheets
+
+What it does:
+CSS is the visual design layer. It controls everything
+you can see — colours, fonts, sizes, spacing, shadows,
+animations, and how things rearrange themselves on a
+small phone screen versus a wide desktop monitor.
+
+What it looks like:
+  .book:hover {
+    transform: translateY(-14px);
+    box-shadow: 2px 4px 20px rgba(0,0,0,0.5);
+  }
+
+That example says: "when the user hovers over a book,
+slide it upward by 14 pixels and add a shadow beneath it."
+
+How to spot it:
+CSS uses curly braces { } to group rules, and colons to
+pair a property name with its value (color: red). It sits
+between the <style> and </style> tags near the top of
+the file.
+
+Why there's so much of it (39%):
+The page has a lot of visual detail — dark wood shelves,
+ceiling lights, hover animations, a loading spinner, a
+popup card, a search bar, responsive mobile layouts.
+Each visual effect needs its own CSS rules.
+
+----------------------------------------------------------------
+
+LANGUAGE 3: JAVASCRIPT  (about 55% of the file)
+-------------------------------------------------
+
+Full name: JavaScript (no relation to Java — it's a
+completely different language, despite the name)
+
+What it does:
+JavaScript is where all the actual work happens. It is
+the only one of the three languages that can do things —
+respond to clicks, load a file, process data, make
+decisions, build new content on screen. HTML and CSS are
+static (they just describe things); JavaScript is dynamic
+(it acts).
+
+In this file, JavaScript is responsible for:
+
+  - Loading the CSV data file from the server
+  - Reading and parsing every row of that spreadsheet
+  - Figuring out each author's last name for sorting
+  - Splitting books into genre groups
+  - Drawing the shelves, book spines, and genre labels
+  - Running the search box in real time as you type
+  - Showing the popup when you click a book
+  - Closing the popup when you press Escape
+
+What it looks like:
+  function parseCSV(text) {
+    // read the file, split into rows, map columns...
+  }
+
+How to spot it:
+JavaScript uses function to define reusable actions,
+if/else to make decisions, and for loops to repeat
+steps. It lives between the <script> and </script>
+tags near the bottom of the file.
+
+Why there's the most of it (55%):
+Because the page doesn't just display fixed content —
+it reads a spreadsheet, transforms the data, and builds
+the entire visual library from scratch every time the
+page loads. That kind of logic takes code.
+
+----------------------------------------------------------------
+
+A NOTE ON REGULAR EXPRESSIONS  (used inside JavaScript)
+---------------------------------------------------------
+
+You may also hear the term "regular expressions" (or
+"regex") when someone discusses this file. These are
+not a separate language exactly, but a special pattern-
+matching shorthand that lives inside JavaScript.
+
+They look intimidating — for example:
+  /\(?\d{4}\s*[-–]\s*\d{0,4}\)?/g
+
+But they are just a compact way of saying: "find anything
+that looks like a year range (e.g. 1900-1980)". In this
+file they are used heavily in the author-name parsing
+logic to strip out dates and handle the many different
+formats library records use for author names.
+
+----------------------------------------------------------------
+
+A NOTE ON SVG  (one tiny piece inside CSS)
+-------------------------------------------
+
+There is also one micro-sized SVG (Scalable Vector
+Graphic) embedded in the file — a tiny dropdown arrow
+icon on the filter menu. SVG is a language for drawing
+shapes mathematically. It is about one line long here
+and you would never notice it, but it technically makes
+four languages total if you're counting strictly.
+
+----------------------------------------------------------------
+
+SUMMARY TABLE
+
+  Language      Share    Job
+  ──────────    ──────   ──────────────────────────────────
+  JavaScript      55%    Logic, data processing, interaction
+  CSS             39%    Visual design and layout
+  HTML             6%    Page structure and containers
+  (SVG)        < 0.1%    One small icon drawing
+
+  Total:         100%
+
+----------------------------------------------------------------
+
+The reason all three languages live in one .html file
+(rather than three separate files) is convenience —
+the page is self-contained, so you can copy the single
+file anywhere and it works without needing to track
+down separate stylesheets or scripts.
+
+================================================================

@@ -1,0 +1,187 @@
+================================================================================
+  JAVASCRIPT OVERVIEW — bookshelf-final.html
+================================================================================
+
+This file is a single-page, self-contained library visualisation. All of the
+JavaScript lives in one <script> block at the bottom of the HTML file. The code
+is divided into the sections described below, in the order they appear in the
+file.
+
+
+--------------------------------------------------------------------------------
+1. CONFIGURATION (the only section users need to touch)
+--------------------------------------------------------------------------------
+Three constants control the entire behaviour of the page and are designed to be
+edited without needing to understand the rest of the code:
+
+  CSV_URL      — the file path or URL to the CSV data file.
+
+  COLUMN_MAP   — a dictionary that translates the column headers in your CSV
+                 into the internal names the visualisation uses (author, title,
+                 genres, state, link, etc.). Changing a CSV header only requires
+                 updating the left-hand side of one line here.
+
+  POPUP_FIELDS — an ordered list of fields that appear in the book detail popup,
+                 along with the human-readable labels and whether a field should
+                 be rendered as a clickable hyperlink.
+
+Two additional constants (GENRE_FIELD, STATE_FIELD, LINK_FIELD) are derived
+from COLUMN_MAP and tell the code which internal name carries special meaning.
+
+
+--------------------------------------------------------------------------------
+2. DOM CACHE
+--------------------------------------------------------------------------------
+All frequently-used HTML elements are queried once at startup and stored in a
+single object called DOM. Every function that needs to read or update the page
+refers to DOM.elementName rather than calling getElementById repeatedly, which
+is a minor but consistent performance saving.
+
+
+--------------------------------------------------------------------------------
+3. STATE VARIABLES
+--------------------------------------------------------------------------------
+Four module-level variables track the runtime state of the application:
+
+  ALL_BOOKS          — the flat, processed list of every book object.
+  GROUPED            — books organised by genre (the data structure that drives
+                       the shelves).
+  ALL_STATES         — the deduplicated, sorted list of contributing states.
+  CURRENT_GENRE /
+  CURRENT_GENRE_BOOKS — whichever shelf the user is currently viewing.
+
+
+--------------------------------------------------------------------------------
+4. CSV PARSER  (parseCSV + splitCSVRow)
+--------------------------------------------------------------------------------
+Rather than relying on a library, the code includes a hand-written, spec-
+compliant CSV parser. The two main challenges it handles are:
+
+  - Quoted fields that contain commas (e.g. "Fiction, Classic")
+  - Quoted fields that span multiple lines
+  - Escaped double-quotes inside quoted fields ("")
+  - Windows-style line endings (\r\n)
+  - The invisible BOM character that Excel adds to exported files
+
+After splitting raw text into rows and cells, the parser applies COLUMN_MAP to
+translate each header into its internal name. Rows that are missing a title,
+author, or genre are silently skipped; if no valid rows survive, the parser
+throws an informative error.
+
+
+--------------------------------------------------------------------------------
+5. AUTHOR NAME PARSING  (extractSortName)
+--------------------------------------------------------------------------------
+Library data often stores author names in inconsistent formats (comma-separated
+"Last, First", natural order "First Last", multiple authors joined by semicolons
+or "and", birth/death years appended, etc.). This function normalises all of
+those formats into a single last-name string used for alphabetical sorting on
+the shelf.
+
+
+--------------------------------------------------------------------------------
+6. DATA PROCESSING  (processData + groupByGenre)
+--------------------------------------------------------------------------------
+processData converts the raw CSV rows into book objects ready for display:
+
+  - Genre expansion: a CSV row listing "Fiction, History" in the genre column
+    becomes two separate book objects — one filed under Fiction and one under
+    History. This allows one book to appear on multiple shelves.
+
+  - Pre-computation: each book object gets two derived fields added at this
+    stage (_sortName and _searchText) so that sorting and search filtering later
+    are fast single lookups rather than repeated string manipulation.
+
+groupByGenre then reorganises the flat list into a dictionary keyed by genre,
+with each genre's books sorted alphabetically by author last name.
+
+
+--------------------------------------------------------------------------------
+7. VISUAL HELPERS  (colors, heights, escaping)
+--------------------------------------------------------------------------------
+A small set of utility functions control the visual appearance of books:
+
+  getBookColor  — picks a colour from a fixed set of palettes. The palette
+                  assigned to a genre and the shade assigned to an individual
+                  book are both derived from a hash of their name/title, so the
+                  same book always gets the same colour on every page load.
+
+  getBookHeight — varies the pixel height of each book spine based on the
+                  length of the title, giving the shelf a natural, varied look.
+
+  adjustColor   — brightens or darkens a hex colour by a fixed amount, used to
+                  create the gradient effect on each book spine.
+
+  escapeHtml    — sanitises any user-supplied text before inserting it into the
+                  page via innerHTML, preventing XSS.
+
+
+--------------------------------------------------------------------------------
+8. DATA LOADING & INIT  (init, initUploadHandlers, processLocalFile,
+                          launchWithCSV)
+--------------------------------------------------------------------------------
+On page load, init() tries to fetch the CSV from CSV_URL. If the fetch fails
+(which happens during local testing, since browsers block file:// fetches), the
+loading screen swaps to a drag-and-drop / file-picker upload zone instead.
+
+Once CSV text is available — either from the network or from a local file — it
+passes through parseCSV → processData → groupByGenre, the loading screen is
+hidden, and the aisle view is shown.
+
+
+--------------------------------------------------------------------------------
+9. AISLE VIEW  (renderAisle + createEndcap)
+--------------------------------------------------------------------------------
+The aisle is the top-level overview — a scrollable row of shelf endcaps, one
+per genre. Genres are paired into columns of two. All DOM nodes are built into
+a DocumentFragment before being inserted into the page, so the browser only
+performs one reflow for the entire aisle rather than one per genre.
+
+Clicking an endcap calls showShelf() to drill down into that genre.
+
+
+--------------------------------------------------------------------------------
+10. GLOBAL SEARCH  (handleGlobalSearch)
+--------------------------------------------------------------------------------
+A text input at the top of the aisle view searches across all books in all
+genres simultaneously. Keystrokes are debounced (200 ms delay) so the DOM is
+only rebuilt once the user pauses typing. Matching uses the pre-computed
+_searchText string on each book. Results are deduplicated (a book appearing in
+multiple genres only shows once) and capped at 100 entries.
+
+
+--------------------------------------------------------------------------------
+11. SHELF VIEW  (showShelf, applyShelfFilters, renderShelfBooks,
+                  getAlphaSections, renderBooksIntoShelf)
+--------------------------------------------------------------------------------
+Clicking an endcap opens the shelf view, which shows all books within one genre
+as physical book spines standing on a shelf.
+
+The shelf has two additional filter controls:
+  - A text search scoped to this genre only.
+  - A dropdown that filters by contributing state.
+
+Both filters are debounced and combined before re-rendering the shelf.
+
+For large shelves (more than 15 books), books are split into alphabetical
+sections (A, B, C…). Sections beyond the first three are rendered lazily using
+an IntersectionObserver — their DOM is only built when they scroll into the
+viewport. This keeps initial render time fast for genres with hundreds of books.
+
+
+--------------------------------------------------------------------------------
+12. BOOK DETAIL MODAL  (showBookDetail, closeModal)
+--------------------------------------------------------------------------------
+Clicking any book spine opens a modal overlay showing that book's full details.
+Fields are displayed in the order defined by POPUP_FIELDS. Any CSV columns not
+listed in POPUP_FIELDS are appended automatically at the end of the popup, so
+extra data is never silently discarded. URL fields are rendered as clickable
+links. The modal closes on background click or the Escape key.
+
+
+--------------------------------------------------------------------------------
+13. BOOT
+--------------------------------------------------------------------------------
+The final line of the script — init() — starts the whole chain.
+
+================================================================================
