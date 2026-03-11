@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Library</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --shelf-white: #e8e2d8;
+    --shelf-side: #d4cec4;
+    --shelf-edge: #c4beb4;
+    --label-bg: #f0ece4;
+    --floor-color: #c8c0b4;
+    --ceiling-color: #f0ece6;
+    --wall-bg: #f5f1eb;
+    --text-dark: #2c2824;
+    --text-mid: #6b6560;
+    --accent: #b0753a;
+    --wood-dark: #3E2723;
+    --wood-mid: #5D4037;
+    --wood-highlight: #8D6E63;
+    --text-light: #f5e6d3;
+    --text-dim-light: #a89279;
+    --accent-gold: #d4a858;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--wall-bg);
+    color: var(--text-dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ═══════ LOADING SCREEN ═══════ */
+  .loading-view {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: linear-gradient(180deg, var(--ceiling-color) 0%, var(--wall-bg) 100%);
+    text-align: center; padding: 40px 24px;
+  }
+  .loading-view.hidden { display: none; }
+  .loading-view h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--text-dark); margin-bottom: 16px;
+  }
+  .loading-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--shelf-edge);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-status {
+    font-size: 0.9rem; color: var(--text-mid);
+    font-style: italic;
+  }
+  .loading-error {
+    color: #b04040; font-size: 0.9rem;
+    margin-top: 12px; max-width: 500px;
+    line-height: 1.6; display: none;
+  }
+  .loading-error code {
+    display: block; margin-top: 8px;
+    background: rgba(0,0,0,0.05); padding: 8px 12px;
+    border-radius: 4px; font-size: 0.78rem;
+    word-break: break-all;
+  }
+
+  /* Local testing upload */
+  .local-upload {
+    margin-top: 24px; width: 100%; max-width: 520px;
+  }
+  .upload-zone {
+    width: 100%;
+    border: 2px dashed var(--shelf-edge);
+    border-radius: 12px;
+    padding: 40px 28px;
+    text-align: center;
+    background: rgba(255,255,255,0.4);
+    cursor: pointer;
+    transition: border-color 0.3s, background 0.3s, transform 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(176,117,58,0.06);
+    transform: scale(1.01);
+  }
+  .upload-zone .icon { font-size: 2.2rem; margin-bottom: 10px; opacity: 0.5; }
+  .upload-zone .main-text {
+    font-weight: 600; font-size: 0.95rem;
+    color: var(--text-dark); margin-bottom: 6px;
+  }
+  .upload-zone .sub-text {
+    font-size: 0.8rem; color: var(--text-mid); line-height: 1.5;
+  }
+  .upload-zone input[type="file"] { display: none; }
+
+  /* ═══════ AISLE VIEW ═══════ */
+  .aisle-view {
+    position: relative; width: 100%; min-height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--ceiling-color) 0%, var(--wall-bg) 12%, var(--wall-bg) 88%, var(--floor-color) 100%);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .aisle-view.hidden {
+    opacity: 0; pointer-events: none; position: absolute; top: 0; left: 0; right: 0;
+    transform: scale(0.97);
+  }
+
+  .ceiling-lights {
+    position: absolute; top: 0; left: 0; right: 0; height: 36px;
+    display: flex; justify-content: center; gap: 220px;
+    z-index: 2; pointer-events: none;
+  }
+  .ceiling-light {
+    width: 100px; height: 6px; background: #fff;
+    border-radius: 0 0 3px 3px;
+    box-shadow: 0 4px 30px rgba(255,255,255,0.7), 0 8px 50px rgba(255,240,200,0.25);
+  }
+  .floor {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 14%;
+    background: linear-gradient(180deg, var(--floor-color), #b8b0a4);
+  }
+  .floor::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: rgba(0,0,0,0.06);
+  }
+  .vanishing-glow {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    width: 160px; height: 260px;
+    background: radial-gradient(ellipse, rgba(255,250,240,0.5) 0%, transparent 70%);
+    pointer-events: none; z-index: 1;
+  }
+
+  .aisle-header {
+    position: relative; z-index: 10;
+    text-align: center; padding: 36px 24px 8px;
+  }
+  .aisle-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700; color: var(--text-dark); letter-spacing: 0.05em;
+  }
+  .aisle-header .subtitle {
+    font-family: 'Source Serif 4', serif;
+    font-size: 0.95rem; color: var(--text-mid);
+    font-style: italic; margin-top: 4px;
+  }
+
+  .aisle-search-bar {
+    position: relative; z-index: 10;
+    max-width: 420px; margin: 16px auto 8px;
+  }
+  .aisle-search-bar input {
+    width: 100%; font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; padding: 10px 16px;
+    border: 1px solid var(--shelf-edge); border-radius: 6px;
+    background: rgba(255,255,255,0.7); color: var(--text-dark);
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .aisle-search-bar input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(176,117,58,0.12);
+  }
+  .aisle-search-bar input::placeholder { color: var(--text-mid); opacity: 0.7; }
+
+  .stats-bar {
+    position: relative; z-index: 10;
+    text-align: center; font-size: 0.75rem;
+    color: var(--text-mid); margin-bottom: 4px; letter-spacing: 0.03em;
+  }
+  .scroll-hint {
+    position: relative; z-index: 10;
+    text-align: center; font-size: 0.72rem;
+    color: var(--text-mid); opacity: 0.5;
+    margin-bottom: 6px; letter-spacing: 0.06em;
+  }
+
+  .aisle-scroll {
+    position: relative; z-index: 5;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 10px 0 80px;
+    scrollbar-width: thin; scrollbar-color: var(--shelf-edge) transparent;
+  }
+  .aisle-scroll::-webkit-scrollbar { height: 6px; }
+  .aisle-scroll::-webkit-scrollbar-track { background: transparent; }
+  .aisle-scroll::-webkit-scrollbar-thumb { background: var(--shelf-edge); border-radius: 3px; }
+
+  .aisle-container {
+    display: flex; align-items: flex-start; gap: 0;
+    width: max-content; margin: 0 auto; padding: 0 60px;
+  }
+  .aisle-column {
+    display: flex; flex-direction: column;
+    align-items: center; flex-shrink: 0;
+  }
+
+  .shelf-endcap {
+    width: 150px; height: 180px; position: relative;
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    background: linear-gradient(180deg, var(--shelf-white) 0%, var(--shelf-side) 100%);
+    border: 1px solid rgba(0,0,0,0.07); border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .shelf-endcap:hover {
+    transform: scale(1.04);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .shelf-endcap:hover .endcap-label {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .shelf-endcap::before {
+    content: ''; position: absolute; top: 25%; left: 10%; right: 10%; height: 1px;
+    background: rgba(0,0,0,0.05);
+  }
+  .shelf-endcap::after {
+    content: ''; position: absolute; top: 55%; left: 10%; right: 10%; height: 1px;
+    background: rgba(0,0,0,0.05);
+  }
+  .shelf-endcap .shelf-line-3 {
+    position: absolute; top: 80%; left: 10%; right: 10%; height: 1px;
+    background: rgba(0,0,0,0.05);
+  }
+  .shelf-depth {
+    position: absolute; top: 0; bottom: 0; width: 18px; z-index: -1;
+  }
+  .shelf-depth.left-depth {
+    right: 100%;
+    background: linear-gradient(90deg, var(--shelf-edge), var(--shelf-side));
+    border-radius: 3px 0 0 3px; border: 1px solid rgba(0,0,0,0.05); border-right: none;
+    transform: perspective(300px) rotateY(30deg); transform-origin: right center;
+  }
+  .shelf-depth.right-depth {
+    left: 100%;
+    background: linear-gradient(270deg, var(--shelf-edge), var(--shelf-side));
+    border-radius: 0 3px 3px 0; border: 1px solid rgba(0,0,0,0.05); border-left: none;
+    transform: perspective(300px) rotateY(-30deg); transform-origin: left center;
+  }
+  .endcap-label {
+    position: relative; z-index: 2;
+    font-family: 'DM Sans', sans-serif; font-weight: 600;
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-dark);
+    background: var(--label-bg); padding: 8px 14px;
+    border-radius: 3px; border: 1px solid rgba(0,0,0,0.08);
+    transition: background 0.3s, color 0.3s, border-color 0.3s;
+    text-align: center; line-height: 1.4;
+    max-width: 120px; word-wrap: break-word;
+  }
+  .aisle-gap {
+    height: 50px; width: 100%; position: relative;
+  }
+  .aisle-gap::before {
+    content: ''; position: absolute; top: 50%; left: 20%; right: 20%;
+    height: 1px; background: rgba(0,0,0,0.04);
+  }
+
+  /* Global search results */
+  .search-results-view {
+    position: relative; z-index: 10;
+    max-width: 800px; margin: 0 auto;
+    padding: 0 32px 60px; display: none;
+  }
+  .search-results-view.active { display: block; }
+  .search-results-count {
+    font-size: 0.82rem; color: var(--text-mid); margin-bottom: 16px;
+  }
+  .search-result-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 6px; margin-bottom: 6px;
+    cursor: pointer; transition: background 0.15s, transform 0.15s;
+  }
+  .search-result-item:hover {
+    background: rgba(255,255,255,0.8); transform: translateX(3px);
+  }
+  .sr-title {
+    font-family: 'Source Serif 4', serif; font-weight: 600;
+    font-size: 0.92rem; color: var(--text-dark);
+  }
+  .sr-author {
+    font-size: 0.82rem; color: var(--text-mid); margin-top: 2px;
+  }
+  .sr-genre {
+    font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--accent); white-space: nowrap;
+  }
+
+  /* ═══════ SHELF DETAIL VIEW ═══════ */
+  .shelf-view {
+    position: relative; min-height: 100vh;
+    background: #1a1410; padding: 0 0 64px;
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .shelf-view.hidden {
+    opacity: 0; transform: scale(1.03); pointer-events: none;
+    position: absolute; top: 0; left: 0; right: 0;
+  }
+
+  .shelf-top-bar {
+    max-width: 1100px; margin: 0 auto;
+    padding: 20px 32px 0;
+    display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .back-btn {
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    color: var(--text-dim-light); background: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 8px 20px; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+  }
+  .back-btn:hover {
+    color: var(--text-light); border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .shelf-controls {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    align-items: center; justify-content: flex-end;
+    flex: 1;
+  }
+  .shelf-controls input,
+  .shelf-controls select {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem; padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-light); outline: none;
+    transition: border-color 0.2s;
+  }
+  .shelf-controls input:focus,
+  .shelf-controls select:focus { border-color: var(--accent-gold); }
+  .shelf-controls input::placeholder { color: var(--text-dim-light); opacity: 0.6; }
+  .shelf-controls input { width: 200px; }
+  .shelf-controls select {
+    min-width: 160px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a89279'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  .shelf-controls select option {
+    background: #2c2218; color: var(--text-light);
+  }
+
+  .active-filter-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: var(--accent-gold);
+    background: rgba(212,168,88,0.1);
+    border: 1px solid rgba(212,168,88,0.2);
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .active-filter-tag .clear-filter {
+    cursor: pointer; font-size: 0.9rem; line-height: 1;
+    opacity: 0.6; transition: opacity 0.15s;
+  }
+  .active-filter-tag .clear-filter:hover { opacity: 1; }
+
+  .shelf-detail-header {
+    padding: 16px 32px 16px;
+    max-width: 1100px; margin: 0 auto;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 20px;
+  }
+  .shelf-detail-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    font-weight: 700; color: var(--text-light);
+  }
+  .shelf-detail-header p {
+    font-size: 0.9rem; color: var(--text-dim-light); margin-top: 4px;
+  }
+
+  .shelf-view-inner {
+    max-width: 1100px; margin: 0 auto; padding: 0 32px;
+  }
+
+  .alpha-section { margin-bottom: 28px; }
+  .alpha-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem; font-weight: 700;
+    color: var(--accent-gold); margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(212,168,88,0.15);
+    letter-spacing: 0.04em;
+  }
+
+  .bookshelf-container {
+    position: relative;
+    background: linear-gradient(180deg, var(--wood-mid) 0%, var(--wood-dark) 100%);
+    border-radius: 6px; padding: 24px 24px 12px; min-height: 100px;
+    box-shadow:
+      0 8px 40px rgba(0,0,0,0.5),
+      inset 0 2px 6px rgba(255,255,255,0.05),
+      inset 0 -5px 0 var(--wood-dark);
+    display: flex; align-items: flex-end;
+    flex-wrap: wrap; gap: 4px;
+  }
+  .bookshelf-container::before {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 10px;
+    background: linear-gradient(180deg, var(--wood-highlight), var(--wood-dark));
+    border-radius: 0 0 6px 6px;
+  }
+  .bookshelf-container::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent);
+    border-radius: 6px 6px 0 0;
+  }
+
+  .book {
+    position: relative;
+    width: clamp(34px, 4.5vw, 48px);
+    border-radius: 2px 4px 4px 2px; cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.3), inset -2px 0 4px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .book::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.2), transparent);
+  }
+  .book::after {
+    content: ''; position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 2px;
+    background: rgba(255,255,255,0.12); border-radius: 1px;
+  }
+  .book:hover {
+    transform: translateY(-14px) scale(1.04);
+    box-shadow: 2px 4px 20px rgba(0,0,0,0.5), inset -2px 0 4px rgba(0,0,0,0.15);
+    z-index: 10;
+  }
+  .book-spine-text {
+    writing-mode: vertical-rl; text-orientation: mixed;
+    font-family: 'Source Serif 4', serif;
+    font-size: 0.5rem; font-weight: 600; letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    padding: 5px 2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    max-height: calc(100% - 14px);
+  }
+  .book-spine-decoration {
+    position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+    width: 50%; height: 1.5px;
+    background: rgba(255,255,255,0.15); border-radius: 1px;
+  }
+
+  .empty-state {
+    width: 100%; text-align: center;
+    padding: 40px 20px; color: var(--text-dim-light);
+    font-style: italic; font-size: 0.9rem;
+  }
+
+  /* ═══════ MODAL ═══════ */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,8,6,0.85); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.35s;
+    padding: 24px;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    background: linear-gradient(135deg, #2c2218 0%, #1e1812 100%);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 40px; max-width: 520px; width: 100%;
+    max-height: 85vh; overflow-y: auto;
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6); position: relative;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+  .modal-overlay.active .modal-card { transform: translateY(0) scale(1); }
+  .modal-close {
+    position: sticky; top: 0; float: right;
+    background: rgba(30,24,18,0.9); border: none;
+    color: var(--text-dim-light); font-size: 1.4rem;
+    cursor: pointer; transition: color 0.2s;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; z-index: 2;
+  }
+  .modal-close:hover { color: var(--text-light); background: rgba(255,255,255,0.08); }
+  .modal-genre {
+    font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent-gold); margin-bottom: 8px;
+  }
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem; font-weight: 700;
+    color: var(--text-light); line-height: 1.3; margin-bottom: 6px;
+  }
+  .modal-author {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1rem; font-style: italic;
+    color: var(--text-dim-light); margin-bottom: 20px;
+  }
+  .modal-details {
+    display: flex; flex-direction: column; gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .modal-detail-row {
+    display: flex; justify-content: space-between; font-size: 0.85rem; gap: 16px;
+  }
+  .modal-detail-row .label { color: var(--text-dim-light); flex-shrink: 0; }
+  .modal-detail-row .value {
+    color: var(--text-light); font-weight: 500;
+    text-align: right; word-break: break-word;
+  }
+  .modal-detail-row .value a {
+    color: var(--accent-gold);
+    text-decoration: none;
+    transition: color 0.2s;
+    word-break: break-all;
+  }
+  .modal-detail-row .value a:hover {
+    color: var(--text-light);
+    text-decoration: underline;
+  }
+
+  /* ═══════ ANIMATIONS ═══════ */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .aisle-column { animation: fadeIn 0.5s ease both; }
+  .alpha-section { animation: slideUp 0.4s ease both; }
+
+  /* ═══════ RESPONSIVE ═══════ */
+  @media (max-width: 640px) {
+    .aisle-header { padding: 28px 16px 8px; }
+    .shelf-endcap { width: 120px; height: 150px; }
+    .endcap-label { font-size: 0.62rem; padding: 6px 10px; max-width: 100px; }
+    .shelf-top-bar, .shelf-detail-header, .shelf-view-inner { padding-left: 16px; padding-right: 16px; }
+    .bookshelf-container { padding: 16px 12px 10px; }
+    .modal-card { padding: 28px 20px; }
+    .book { width: 30px; }
+    .shelf-controls { justify-content: flex-start; }
+    .shelf-controls input { width: 100%; }
+    .shelf-controls select { width: 100%; }
+    .aisle-search-bar { margin-left: 16px; margin-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ LOADING ═══════ -->
+<div class="loading-view" id="loadingView">
+  <h1>The Library</h1>
+  <div class="loading-spinner" id="loadingSpinner"></div>
+  <div class="loading-status" id="loadingStatus">Loading collection…</div>
+  <div class="loading-error" id="loadingError"></div>
+
+  <!-- Local testing fallback -->
+  <div class="local-upload" id="localUpload" style="display:none;">
+    <div class="upload-zone" id="uploadZone">
+      <div class="icon">📁</div>
+      <div class="main-text">Drop your CSV here, or click to browse</div>
+      <div class="sub-text">Local testing mode — your data stays in the browser, nothing is uploaded</div>
+      <input type="file" id="fileInput" accept=".csv,.tsv,.txt">
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ AISLE VIEW ═══════ -->
+<div class="aisle-view hidden" id="aisleView" style="display:none;">
+  <div class="ceiling-lights">
+    <div class="ceiling-light"></div>
+    <div class="ceiling-light"></div>
+    <div class="ceiling-light"></div>
+  </div>
+  <div class="vanishing-glow"></div>
+  <div class="floor"></div>
+
+  <header class="aisle-header">
+    <h1>The Library</h1>
+    <div class="subtitle">Select a shelf to browse works by genre</div>
+  </header>
+
+  <div class="aisle-search-bar">
+    <input type="text" id="globalSearch" placeholder="Search all works by title, author, state, or keyword…" oninput="handleGlobalSearch(this.value)">
+  </div>
+
+  <div class="stats-bar" id="statsBar"></div>
+  <div class="scroll-hint" id="scrollHint">scroll to browse all shelves →</div>
+
+  <div class="aisle-scroll" id="aisleScroll">
+    <div class="aisle-container" id="aisleContainer"></div>
+  </div>
+
+  <div class="search-results-view" id="searchResultsView"></div>
+</div>
+
+<!-- ═══════ SHELF DETAIL VIEW ═══════ -->
+<div class="shelf-view hidden" id="shelfView" style="display:none;">
+  <div class="shelf-top-bar">
+    <button class="back-btn" onclick="showAisle()">← Back to Library</button>
+    <div class="shelf-controls">
+      <input type="text" id="shelfSearchInput" placeholder="Search this shelf…" oninput="applyShelfFilters()">
+      <select id="stateFilter" onchange="applyShelfFilters()">
+        <option value="">All States</option>
+      </select>
+    </div>
+  </div>
+  <div class="shelf-detail-header">
+    <h2 id="shelfTitle"></h2>
+    <p id="shelfSubtitle"></p>
+  </div>
+  <div class="shelf-view-inner" id="shelfViewInner"></div>
+</div>
+
+<!-- ═══════ MODAL ═══════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-genre" id="modalGenre"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-author" id="modalAuthor"></div>
+    <div class="modal-details" id="modalDetails"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  ⚙️ CONFIGURATION — EDIT THIS SECTION
+// ════════════════════════════════════════════════════════════
+//
+//  This is the ONLY section you need to change when your CSV
+//  column headers change. Everything below this config block
+//  uses the internal names (the right side of the arrows below),
+//  so the rest of the code never needs to be touched.
+//
+// ════════════════════════════════════════════════════════════
+
+// ── 1. CSV FILE LOCATION ──────────────────────────────────
+// Where is your CSV file? Set the path below.
+//
+// For WordPress:
+//   '/wp-content/uploads/library-data.csv'
+//   'https://yoursite.com/wp-content/uploads/library-data.csv'
+//
+// For local testing (CSV in the same folder as this HTML file):
+//   './library-data.csv'
+//
+const CSV_URL = './library-data.csv';
+
+
+// ── 2. COLUMN MAPPING ────────────────────────────────────
+// This tells the visualization which column in YOUR CSV
+// corresponds to which role in the visualization.
+//
+// HOW TO READ THIS:
+//   'Your CSV Column Header'  →  'internal name'
+//
+// HOW TO CHANGE THIS:
+//   If your CSV has a column called "Writer Name" that holds
+//   the author, change the author line to:
+//       'Writer Name': 'author',
+//
+// RULES:
+//   - The LEFT side must EXACTLY match your CSV header
+//     (but capitalization doesn't matter)
+//   - The RIGHT side must stay as-is (author, state, title, etc.)
+//   - You need at minimum: author, title, and genres
+//   - Any CSV columns NOT listed here will still appear
+//     in the book detail popup automatically
+//
+const COLUMN_MAP = {
+
+  // YOUR CSV COLUMN HEADER              INTERNAL NAME
+  // ─────────────────────────           ──────────────
+  'author':                              'author',
+  'Contributing State':                  'state',
+  'title':                               'title',
+  'Publication Info':                    'publication',
+  'genre':                               'genres',
+  'Link to text':                        'link',
+
+  // ── ALTERNATIVE HEADERS ──
+  // If your CSV uses different column names, just swap them in.
+  // Uncomment the ones you need and comment out the ones above.
+  //
+  // 'Author - Standardized (LOC listing when available)':  'author',
+  // 'author_name_variants':        'author',
+  // 'Title - Standardized':        'title',
+  // 'Title':                       'title',
+  // 'GENRE(s)':                    'genres',
+};
+
+
+// ── 3. SPECIAL FIELD ROLES ────────────────────────────────
+// These tell the visualization which internal names serve
+// special purposes. You should NOT need to change these
+// unless you changed the right-side values in COLUMN_MAP.
+
+// Which field holds genres (supports comma-separated, e.g. "Poetry, History")
+const GENRE_FIELD = 'genres';
+
+// Which field holds the state (used for the filter dropdown on each shelf)
+const STATE_FIELD = 'state';
+
+// Which field holds URLs (rendered as a clickable link in the popup)
+const LINK_FIELD = 'link';
+
+
+// ── 4. POPUP DISPLAY ORDER ────────────────────────────────
+// Controls what fields appear in the book detail popup and
+// in what order. Add, remove, or reorder rows as needed.
+//
+// key:     the internal name (right side from COLUMN_MAP)
+// label:   what the user sees in the popup
+// isLink:  set to true if this field is a URL
+//
+const POPUP_FIELDS = [
+  { key: 'author',       label: 'Author' },
+  { key: 'state',        label: 'Contributing State' },
+  { key: 'publication',  label: 'Publication Info' },
+  { key: 'genres',       label: 'Genre(s)' },
+  { key: 'link',         label: 'Link to Text', isLink: true },
+];
+
+
+// ════════════════════════════════════════════════════════════
+//  DOM CACHE
+// ════════════════════════════════════════════════════════════
+// This script tag sits at the bottom of <body>, so every element
+// already exists when this line runs. Caching here means every
+// function below uses DOM.x instead of calling getElementById
+// (which walks the whole DOM tree) on every invocation.
+const DOM = {
+  loadingView:       document.getElementById('loadingView'),
+  loadingSpinner:    document.getElementById('loadingSpinner'),
+  loadingStatus:     document.getElementById('loadingStatus'),
+  loadingError:      document.getElementById('loadingError'),
+  localUpload:       document.getElementById('localUpload'),
+  aisleView:         document.getElementById('aisleView'),
+  aisleContainer:    document.getElementById('aisleContainer'),
+  aisleScroll:       document.getElementById('aisleScroll'),
+  statsBar:          document.getElementById('statsBar'),
+  scrollHint:        document.getElementById('scrollHint'),
+  globalSearch:      document.getElementById('globalSearch'),
+  searchResultsView: document.getElementById('searchResultsView'),
+  shelfView:         document.getElementById('shelfView'),
+  shelfTitle:        document.getElementById('shelfTitle'),
+  shelfSubtitle:     document.getElementById('shelfSubtitle'),
+  shelfViewInner:    document.getElementById('shelfViewInner'),
+  shelfSearchInput:  document.getElementById('shelfSearchInput'),
+  stateFilter:       document.getElementById('stateFilter'),
+  modalOverlay:      document.getElementById('modalOverlay'),
+  modalGenre:        document.getElementById('modalGenre'),
+  modalTitle:        document.getElementById('modalTitle'),
+  modalAuthor:       document.getElementById('modalAuthor'),
+  modalDetails:      document.getElementById('modalDetails'),
+};
+
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let ALL_BOOKS = [];        // Flat list after genre splitting
+let GROUPED = {};          // { genre: [books] }
+let ALL_STATES = [];       // Unique states across entire dataset
+let CURRENT_GENRE = null;
+let CURRENT_GENRE_BOOKS = [];
+
+// ════════════════════════════════════════════════════════════
+//  CSV PARSER
+// ════════════════════════════════════════════════════════════
+//
+//  A CSV (Comma-Separated Values) file looks like this:
+//
+//    title,author,genre
+//    Beloved,Toni Morrison,Fiction
+//    "The Sun Also Rises",Ernest Hemingway,"Fiction, Classic"
+//
+//  The challenge: some fields are wrapped in double-quotes,
+//  and those fields can contain commas or even line breaks.
+//  A simple "split by comma" would break on those cases.
+//  The two functions below handle that complexity carefully.
+//
+// ════════════════════════════════════════════════════════════
+
+function parseCSV(text) {
+  // ── Step 1: Remove the BOM ─────────────────────────────────
+  // When you export a CSV from Microsoft Excel, it secretly
+  // prepends a hidden character called a BOM (Byte Order Mark,
+  // Unicode value 0xFEFF) to the very start of the file.
+  // It's invisible but causes the first column header to be
+  // read as something like "ï»¿title" instead of "title",
+  // which would break the column mapping. We strip it if found.
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // ── Step 2: Split the file into logical lines ──────────────
+  //
+  // Why not just use text.split('\n')?
+  // Because a field value can legally contain a newline if it
+  // is wrapped in quotes, for example:
+  //
+  //   "Poetry,
+  //    Prose"
+  //
+  // That is ONE field value that spans two lines. If we split
+  // naively on '\n', we'd break it into two separate rows.
+  //
+  // The solution: walk through the text character by character,
+  // keeping track of whether we're currently inside a quoted
+  // field. Only treat a newline as a "real" row separator when
+  // we are NOT inside quotes.
+  //
+  // 'inQuotes' acts as a toggle — it flips between true/false
+  // each time we encounter a double-quote character.
+  const lines = [];
+  let current = ''; // the text of the line we're currently building
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (ch === '"') {
+      // Flip the inQuotes flag so we know we've entered or exited
+      // a quoted section of the text.
+      inQuotes = !inQuotes;
+      current += ch;  // Keep the quote character — splitCSVRow needs it later
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      // This is a real end-of-line (we're not inside a quoted field).
+      // '\r\n' is Windows-style line endings (carriage return + newline).
+      // If we see '\r' followed by '\n', skip the '\n' so we don't
+      // produce an empty line between them.
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      lines.push(current); // save the completed line
+      current = '';         // start fresh for the next line
+    } else {
+      current += ch; // just a normal character — append it to the current line
+    }
+  }
+  // The loop ends without a final newline, so push whatever is left
+  if (current.trim() !== '') lines.push(current);
+
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+
+  // ── Step 3: Parse the header row ──────────────────────────
+  // The first line of a CSV is always the header — the column names.
+  // We parse it the same way as any data row (splitCSVRow handles
+  // quoted headers too), then trim whitespace from each name.
+  //
+  // Example result for "title,author,genre":
+  //   headers = ['title', 'author', 'genre']
+  const headers = splitCSVRow(lines[0]).map(h => h.trim());
+
+  // ── Step 4: Build the column-name translation table ───────
+  //
+  // The COLUMN_MAP at the top of the file lets the user rename
+  // columns. For example:
+  //   'Author - Standardized (LOC listing)': 'author'
+  // means "whenever you see that long header in the CSV, treat
+  // it internally as just 'author'".
+  //
+  // Here we build a lookup table keyed by column *position*
+  // (index 0, 1, 2…) so that later, when we read each row's
+  // values, we know which internal name to assign to position 0,
+  // position 1, etc.
+  //
+  // The comparison is case-insensitive (.toLowerCase()) so
+  // "Title", "TITLE", and "title" all match.
+  //
+  // If a header has no entry in COLUMN_MAP, we just use the
+  // original header name as-is — it will still appear in the
+  // book detail popup.
+  const headerToField = {};
+  headers.forEach((h, i) => {
+    const mapKey = Object.keys(COLUMN_MAP).find(k => k.toLowerCase() === h.toLowerCase());
+    headerToField[i] = mapKey ? COLUMN_MAP[mapKey] : h;
+    //               ↑ mapped internal name     ↑ or keep original header
+  });
+
+  // ── Step 5: Parse every data row ──────────────────────────
+  const rawRows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = splitCSVRow(lines[i]); // split the line into individual cell values
+
+    // Skip completely blank lines (can appear at the end of an exported CSV)
+    if (values.length === 0 || (values.length === 1 && values[0].trim() === '')) continue;
+
+    // Build a plain object for this row, e.g.:
+    //   { author: 'Toni Morrison', title: 'Beloved', genres: 'Fiction' }
+    // by pairing each value with its translated column name.
+    const entry = {};
+    values.forEach((val, vi) => {
+      if (vi < headers.length) {
+        entry[headerToField[vi]] = val.trim();
+      }
+    });
+
+    // Only keep rows that have all three required fields.
+    // A row missing a title, author, or genre can't be displayed.
+    if (entry.title && entry.author && entry[GENRE_FIELD]) {
+      rawRows.push(entry);
+    }
+  }
+
+  // ── Step 6: Error if nothing usable was found ─────────────
+  // If every row was skipped (missing required fields), produce
+  // a helpful error message that shows what fields were actually
+  // detected after mapping — so the user knows what to fix.
+  if (rawRows.length === 0) {
+    const sampleEntry = {};
+    if (lines.length > 1) {
+      const testVals = splitCSVRow(lines[1]);
+      testVals.forEach((val, vi) => {
+        if (vi < headers.length) sampleEntry[headerToField[vi]] = val.trim();
+      });
+    }
+    throw new Error(
+      'No valid rows found. Each row needs title, author, and genre fields.\n' +
+      'After column mapping, a sample row has these fields: ' + Object.keys(sampleEntry).join(', ') + '\n' +
+      'Check that COLUMN_MAP in the configuration section matches your CSV headers.'
+    );
+  }
+  return rawRows;
+}
+
+// ────────────────────────────────────────────────────────────
+//  splitCSVRow — split one CSV line into its individual values
+// ────────────────────────────────────────────────────────────
+//
+//  A CSV row looks like:
+//    Beloved,Toni Morrison,"Fiction, Classic"
+//
+//  We can't just split on commas, because the third field contains
+//  a comma inside quotes. Instead we walk character by character,
+//  tracking whether we're inside a quoted field.
+//
+//  Special case — escaped quotes inside a quoted field:
+//  The CSV standard says that to include a literal double-quote
+//  character inside a quoted field, you write it twice: ""
+//  For example:  "She said ""hello"""  →  She said "hello"
+//
+//  This function also handles tab-separated files (TSV) — the
+//  condition `ch === ','  || ch === '\t'` treats both as delimiters.
+//
+function splitCSVRow(line) {
+  const result = [];
+  let current = '';   // the value of the cell we're currently building
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        // Two quotes in a row ("") inside a quoted field = one literal quote.
+        // Add a single " to the value and jump over the second quote.
+        current += '"';
+        i++;
+      } else {
+        // A single quote: toggle whether we're inside a quoted field.
+        inQuotes = !inQuotes;
+        // We intentionally do NOT add the quote character to `current`
+        // because the quotes are just delimiters, not part of the value.
+      }
+    } else if ((ch === ',' || ch === '\t') && !inQuotes) {
+      // A comma (or tab) outside of quotes is a column separator.
+      // Save the current cell value and start a new one.
+      result.push(current);
+      current = '';
+    } else {
+      current += ch; // ordinary character — add it to the current cell
+    }
+  }
+
+  // After the loop, the last cell has no trailing comma, so we push it manually.
+  result.push(current);
+  return result;
+}
+
+// ════════════════════════════════════════════════════════════
+//  AUTHOR NAME PARSING
+// ════════════════════════════════════════════════════════════
+//
+//  PURPOSE: Extract a sort key — the last name of the first
+//  listed author — so books can be sorted alphabetically on
+//  the shelf, like a real library.
+//
+//  WHY IS THIS HARD?
+//  Author fields in library data come in many inconsistent formats:
+//
+//    "Smith, John"                    → comma-separated, Last First
+//    "John Smith"                     → natural order, First Last
+//    "Smith, John; Doe, Jane"         → multiple authors with semicolon
+//    "John Smith and Jane Doe"        → multiple authors with "and"
+//    "Smith, John, 1900-1980"         → author with life dates appended
+//    "Smith, John (1900-1980)"        → dates in parentheses
+//
+//  In every case, the goal is just the first author's last name:
+//  "Smith".
+//
+//  APPROACH: Strip noise, then detect which name format we have.
+
+function extractSortName(authorField) {
+  if (!authorField) return '';
+
+  // ── 1. Take only the first author ─────────────────────────
+  // Multiple authors are often joined by semicolons (;) or the
+  // word "and". We only care about the first one for sorting.
+  //
+  // The regex /;|\band\b/i means:
+  //   ;       → a literal semicolon
+  //   |       → OR
+  //   \band\b → the word "and" as a whole word (not inside "Anderson")
+  //   /i      → case-insensitive (matches "and", "And", "AND")
+  let first = authorField.split(/;|\band\b/i)[0].trim();
+
+  // ── 2. Remove life dates ───────────────────────────────────
+  // Library records often include birth/death years, e.g.:
+  //   "Smith, John, 1900-1980"  or  "Smith, John (1900-1980)"
+  //
+  // The regex \(?\d{4}\s*[-–]\s*\d{0,4}\)? means:
+  //   \(?        → optional opening parenthesis
+  //   \d{4}      → exactly 4 digits (the birth year)
+  //   \s*[-–]\s* → a dash or en-dash, optionally surrounded by spaces
+  //   \d{0,4}    → 0-4 digits (death year, which may be absent for living people)
+  //   \)?        → optional closing parenthesis
+  first = first.replace(/\(?\d{4}\s*[-–]\s*\d{0,4}\)?/g, '').trim();
+
+  // After removing the date, there may be a trailing comma left over,
+  // e.g. "Smith, John," — clean that up.
+  first = first.replace(/,\s*$/, '').trim();
+
+  if (!first) return '';
+
+  // ── 3. Detect name format and extract last name ────────────
+
+  if (first.includes(',')) {
+    // Format: "Last, First"  →  everything before the comma is the last name.
+    // Example: "Morrison, Toni"  →  "Morrison"
+    return first.split(',')[0].trim();
+  }
+
+  // Format: "First Last"  →  take the last word in the string.
+  // We split on one or more whitespace characters (\s+) and take
+  // the final element of the resulting array.
+  // Example: "Toni Morrison"  →  ["Toni", "Morrison"]  →  "Morrison"
+  // Example: "Gabriel García Márquez"  →  ["Gabriel", "García", "Márquez"]  →  "Márquez"
+  const parts = first.split(/\s+/);
+  return parts[parts.length - 1].trim();
+}
+
+// ════════════════════════════════════════════════════════════
+//  PROCESS RAW DATA → BOOKS
+// ════════════════════════════════════════════════════════════
+//
+//  At this point we have an array of raw row objects straight
+//  from the CSV. Two things need to happen before we can use them:
+//
+//  1. GENRE EXPANSION: A single CSV row can list multiple genres
+//     separated by commas, e.g. "Fiction, History". Since each
+//     shelf in the visualization holds one genre, we create a
+//     separate book object for each genre. A book in two genres
+//     appears on two shelves.
+//
+//  2. SORT NAME: We pre-compute the author's last name once per
+//     row (rather than repeating the work every time we sort),
+//     and store it as a special "_sortName" property.
+//
+//  Properties prefixed with "_" are internal — they won't show
+//  up as labeled fields in the book detail popup.
+//
+function processData(rawRows) {
+  const books = [];
+
+  // A Set automatically ignores duplicates, so adding the same
+  // state many times still produces only one entry. We use this
+  // to collect every unique state that appears in the data.
+  const stateSet = new Set();
+
+  rawRows.forEach(row => {
+    // ── Genre splitting ──────────────────────────────────────
+    // The genre field might look like "Fiction, History" or
+    // "Poetry/Memoir" or "Fiction; Essays".
+    //
+    // The regex [,;\/] matches any of: comma, semicolon, slash.
+    // .map(g => g.trim())       → remove surrounding whitespace
+    // .filter(g => g.length > 0) → drop any empty strings that
+    //   result from something like "Fiction," (trailing delimiter)
+    const genres = row[GENRE_FIELD]
+      .split(/[,;\/]/)
+      .map(g => g.trim())
+      .filter(g => g.length > 0);
+
+    const sortName = extractSortName(row.author);
+
+    const state = row[STATE_FIELD] || '';
+    if (state) stateSet.add(state); // collect unique states
+
+    // Pre-compute a single lowercase search string from all the row's
+    // field values. Storing it here means search filters (which run on
+    // every keystroke) can do a fast single .includes() check instead of
+    // calling Object.values() + String() + toLowerCase() on every book,
+    // on every keypress. Built once per row; shared across genre copies.
+    const rowText = Object.values(row).join(' ').toLowerCase();
+
+    // ── One book object per genre ────────────────────────────
+    // The spread operator `...row` copies all the original CSV
+    // fields into the new object, then we add three extra fields:
+    //   _genre      → which specific genre this copy belongs to
+    //   _sortName   → pre-computed last name for alphabetic sorting
+    //   _searchText → pre-built lowercase string for fast search filtering
+    genres.forEach(genre => {
+      books.push({
+        ...row,        // copy all original CSV fields (title, author, state, etc.)
+        _genre: genre,
+        _sortName: sortName,
+        _searchText: rowText + ' ' + genre.toLowerCase(),
+      });
+    });
+  });
+
+  // Convert the Set of states into a sorted array so the
+  // dropdown filter always appears in alphabetical order.
+  ALL_STATES = [...stateSet].sort();
+  return books;
+}
+
+// ────────────────────────────────────────────────────────────
+//  groupByGenre — organise the flat book list into shelves
+// ────────────────────────────────────────────────────────────
+//
+//  Input:  a flat array of book objects (each has a _genre field)
+//  Output: an object where each key is a genre name and the value
+//          is the array of books belonging to that genre, e.g.:
+//
+//    {
+//      'Fiction':  [ bookA, bookB, ... ],
+//      'Poetry':   [ bookC, bookD, ... ],
+//      'History':  [ bookE, ... ],
+//    }
+//
+//  Within each genre, books are sorted alphabetically by the
+//  author's last name using localeCompare, which handles
+//  accented characters (é, ñ, ü) correctly.
+//
+function groupByGenre(books) {
+  const groups = {};
+
+  books.forEach(book => {
+    const g = book._genre;
+    // If this genre hasn't been seen yet, create an empty array for it.
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(book);
+  });
+
+  // Sort each genre's book list by last name.
+  // localeCompare is like comparing strings alphabetically, but
+  // it correctly handles letters like é, ñ, ü, etc.
+  Object.keys(groups).forEach(genre => {
+    groups[genre].sort((a, b) => a._sortName.localeCompare(b._sortName));
+  });
+
+  return groups;
+}
+
+// ════════════════════════════════════════════════════════════
+//  BOOK COLORS & HEIGHTS
+// ════════════════════════════════════════════════════════════
+const PALETTES = [
+  ["#2c5f7c","#8b3a3a","#3b6b4f","#6b5b8a","#7c6a4f","#2d4a5e","#884466","#4a7065"],
+  ["#8b6914","#5c3d2e","#2e5047","#7a4a5e","#4e6b3a","#8a5c3a","#3d5c7a","#6b5040"],
+  ["#1e1e2e","#3a1a1a","#2a2a3a","#4a2030","#1a2a2a","#3a2a1a","#2e1a3a","#3a3a2a"],
+  ["#5e2d5e","#2d4e5e","#6e3a2e","#2e5e3a","#7a5a2e","#3e2e6e","#5e6e2e","#4e2e4e"],
+  ["#6e4b2a","#3a4e3a","#7a3a3a","#4a5a6a","#8a6a3a","#5a3a2a","#3a5a4a","#6a5a4a"],
+  ["#6b3a5c","#3a5c6b","#8a7a3a","#4a6b4a","#7a4a3a","#3a4a7a","#6b6b3a","#5a3a6b"],
+  ["#2a1515","#1a1a2a","#3a1a1a","#2a0a1a","#1a2a1a","#3a2a2a","#4a2a1a","#2a2a1a"],
+  ["#8b4a5c","#6b3a4a","#9a5a5a","#7a4a6a","#a06a5a","#8a5a6a","#7a6a5a","#6a5a5a"],
+];
+
+// hashStr — convert a string into a stable integer
+//
+// Given the same string (e.g. "Fiction"), this always returns
+// the same number. That number is then used to pick a colour
+// palette and a specific colour within that palette, ensuring
+// that every book on the "Fiction" shelf shares a consistent
+// colour family across page loads.
+//
+// How it works:
+//   Start with 0. For each character in the string, multiply
+//   the running total by 31 (via the bitwise trick h << 5 - h)
+//   and add the character's numeric code. The "h |= 0" line
+//   clamps the number to a 32-bit integer to prevent it from
+//   growing unboundedly. Math.abs ensures we always get a
+//   positive number (useful for array indexing with %).
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+  return Math.abs(h);
+}
+
+function getBookColor(genre, book) {
+  const pi = hashStr(genre) % PALETTES.length;
+  const ci = hashStr(book._sortName + book.title) % PALETTES[pi].length;
+  return PALETTES[pi][ci];
+}
+
+function getBookHeight(title) {
+  return 120 + ((title.length * 7) % 60);
+}
+
+function adjustColor(hex, amt) {
+  let r = Math.max(0, Math.min(255, parseInt(hex.slice(1,3),16) + amt));
+  let g = Math.max(0, Math.min(255, parseInt(hex.slice(3,5),16) + amt));
+  let b = Math.max(0, Math.min(255, parseInt(hex.slice(5,7),16) + amt));
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════════
+//  LOAD DATA & INIT
+// ════════════════════════════════════════════════════════════
+async function init() {
+  try {
+    DOM.loadingStatus.textContent = 'Fetching data…';
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: Could not load ${CSV_URL}`);
+
+    DOM.loadingStatus.textContent = 'Parsing CSV…';
+    const text = await resp.text();
+    launchWithCSV(text);
+
+  } catch (err) {
+    // Show local testing fallback
+    DOM.loadingSpinner.style.display = 'none';
+    DOM.loadingStatus.textContent = 'CSV not found on server — use local testing mode';
+    DOM.localUpload.style.display = 'block';
+    initUploadHandlers();
+  }
+}
+
+function initUploadHandlers() {
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('fileInput');
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) processLocalFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', e => {
+    if (e.target.files[0]) processLocalFile(e.target.files[0]);
+  });
+}
+
+function processLocalFile(file) {
+  DOM.loadingError.style.display = 'none';
+  DOM.loadingStatus.textContent = `Reading ${file.name}…`;
+  DOM.loadingSpinner.style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      launchWithCSV(e.target.result);
+    } catch (err) {
+      DOM.loadingSpinner.style.display = 'none';
+      DOM.loadingStatus.textContent = 'Error parsing CSV';
+      DOM.loadingError.textContent = err.message;
+      DOM.loadingError.style.display = 'block';
+    }
+  };
+  reader.onerror = () => {
+    DOM.loadingSpinner.style.display = 'none';
+    DOM.loadingStatus.textContent = 'Failed to read file';
+  };
+  reader.readAsText(file);
+}
+
+function launchWithCSV(text) {
+  const rawRows = parseCSV(text);
+
+  // ── Diagnostic: log detected columns so you can verify mapping ──
+  if (rawRows.length > 0) {
+    const sampleKeys = Object.keys(rawRows[0]);
+    console.log('📚 Library — Detected fields after column mapping:', sampleKeys);
+    console.log('📚 Library — Sample row:', rawRows[0]);
+
+    // Warn if critical fields are missing
+    const missing = [];
+    if (!rawRows[0].title)        missing.push('title');
+    if (!rawRows[0].author)       missing.push('author');
+    if (!rawRows[0][GENRE_FIELD]) missing.push(GENRE_FIELD + ' (genres)');
+    if (missing.length > 0) {
+      const msg = `Column mapping issue: the fields [${missing.join(', ')}] were not found.\n\n` +
+        `Detected CSV columns: ${sampleKeys.join(', ')}\n\n` +
+        `Open the HTML file and update the COLUMN_MAP in the ⚙️ CONFIGURATION section ` +
+        `so the left side matches your CSV headers exactly.`;
+      console.error('📚 Library —', msg);
+      alert(msg);
+      return;
+    }
+  }
+
+  ALL_BOOKS = processData(rawRows);
+  GROUPED = groupByGenre(ALL_BOOKS);
+
+  DOM.loadingView.classList.add('hidden');
+  DOM.aisleView.style.display = ''; DOM.aisleView.classList.remove('hidden');
+
+  const genres = Object.keys(GROUPED);
+  const uniqueAuthors = new Set(ALL_BOOKS.map(b => b.author)).size;
+  DOM.statsBar.textContent =
+    `${rawRows.length} works · ${genres.length} genres · ${uniqueAuthors} authors · ${ALL_STATES.length} states`;
+
+  renderAisle();
+}
+
+// ════════════════════════════════════════════════════════════
+//  AISLE VIEW
+// ════════════════════════════════════════════════════════════
+function renderAisle() {
+  DOM.aisleContainer.innerHTML = '';
+  const genres = Object.keys(GROUPED).sort();
+
+  // Build all columns off-screen in a DocumentFragment, then insert them
+  // in one operation — avoids a reflow for each column appended individually.
+  const frag = document.createDocumentFragment();
+
+  for (let i = 0; i < genres.length; i += 2) {
+    const col = document.createElement('div');
+    col.className = 'aisle-column';
+    col.style.animationDelay = `${(i / 2) * 0.04}s`;
+
+    col.appendChild(createEndcap(genres[i]));
+    const gap = document.createElement('div');
+    gap.className = 'aisle-gap';
+    col.appendChild(gap);
+
+    if (genres[i + 1]) {
+      col.appendChild(createEndcap(genres[i + 1]));
+    } else {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'width:150px;height:180px;';
+      col.appendChild(empty);
+    }
+    frag.appendChild(col);
+  }
+
+  DOM.aisleContainer.appendChild(frag);
+
+  requestAnimationFrame(() => {
+    DOM.scrollHint.style.display =
+      DOM.aisleScroll.scrollWidth > DOM.aisleScroll.clientWidth + 20 ? 'block' : 'none';
+  });
+}
+
+function createEndcap(genre) {
+  const el = document.createElement('div');
+  el.className = 'shelf-endcap';
+  el.onclick = () => showShelf(genre);
+
+  ['left-depth','right-depth'].forEach(cls => {
+    const d = document.createElement('div');
+    d.className = `shelf-depth ${cls}`;
+    el.appendChild(d);
+  });
+
+  const line3 = document.createElement('div');
+  line3.className = 'shelf-line-3';
+  el.appendChild(line3);
+
+  const label = document.createElement('div');
+  label.className = 'endcap-label';
+  label.textContent = genre;
+  el.appendChild(label);
+
+  return el;
+}
+
+// ════════════════════════════════════════════════════════════
+//  GLOBAL SEARCH
+// ════════════════════════════════════════════════════════════
+let gSearchTimeout = null;
+function handleGlobalSearch(query) {
+  clearTimeout(gSearchTimeout);
+  const scrollArea = DOM.aisleScroll;
+  const resultsView = DOM.searchResultsView;
+
+  if (!query || query.trim().length < 2) {
+    scrollArea.style.display = '';
+    resultsView.classList.remove('active');
+    DOM.scrollHint.style.display = '';
+    return;
+  }
+
+  gSearchTimeout = setTimeout(() => {
+    const q = query.toLowerCase().trim();
+
+    // _searchText is pre-computed in processData — one .includes() per book
+    // instead of Object.values() + String() + toLowerCase() on every field.
+    const results = ALL_BOOKS.filter(b => b._searchText.includes(q));
+
+    // Deduplicate (same book may appear in multiple genres)
+    const seen = new Set();
+    const unique = results.filter(b => {
+      const key = b.title + '||' + b.author;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+
+    scrollArea.style.display = 'none';
+    DOM.scrollHint.style.display = 'none';
+    resultsView.classList.add('active');
+
+    const shown = unique.slice(0, 100);
+
+    // Build all result nodes in a DocumentFragment (off-screen) then insert
+    // in one operation, instead of up to 100 individual live-DOM appends.
+    const frag = document.createDocumentFragment();
+
+    const countEl = document.createElement('div');
+    countEl.className = 'search-results-count';
+    countEl.textContent =
+      `${unique.length} result${unique.length !== 1 ? 's' : ''} for "${query.trim()}"` +
+      (unique.length > 100 ? ' (showing first 100)' : '');
+    frag.appendChild(countEl);
+
+    shown.forEach(book => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.onclick = () => showBookDetail(book);
+      item.innerHTML = `
+        <div>
+          <div class="sr-title">${escapeHtml(book.title)}</div>
+          <div class="sr-author">${escapeHtml(book.author)}</div>
+        </div>
+        <div class="sr-genre">${escapeHtml(book._genre)}</div>
+      `;
+      frag.appendChild(item);
+    });
+
+    resultsView.innerHTML = '';
+    resultsView.appendChild(frag);
+  }, 200);
+}
+
+// ════════════════════════════════════════════════════════════
+//  SHELF DETAIL VIEW
+// ════════════════════════════════════════════════════════════
+function showShelf(genre) {
+  CURRENT_GENRE = genre;
+  CURRENT_GENRE_BOOKS = GROUPED[genre] || [];
+
+  DOM.aisleView.classList.add('hidden');
+  DOM.shelfView.style.display = ''; DOM.shelfView.classList.remove('hidden');
+
+  DOM.shelfTitle.textContent = genre;
+  DOM.shelfSearchInput.value = '';
+
+  // Populate state filter with only states that appear in this genre.
+  // Build all <option> elements in a DocumentFragment first to avoid
+  // a reflow for each option appended individually.
+  const genreStates = [...new Set(CURRENT_GENRE_BOOKS.map(b => b[STATE_FIELD]).filter(Boolean))].sort();
+  const optFrag = document.createDocumentFragment();
+  genreStates.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    optFrag.appendChild(opt);
+  });
+  DOM.stateFilter.innerHTML = '<option value="">All States</option>';
+  DOM.stateFilter.appendChild(optFrag);
+
+  renderShelfBooks(CURRENT_GENRE_BOOKS);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+let shelfFilterTimeout = null;
+function applyShelfFilters() {
+  // Debounce exactly like handleGlobalSearch — prevents per-keystroke
+  // DOM reconstruction when the user is still typing.
+  clearTimeout(shelfFilterTimeout);
+  shelfFilterTimeout = setTimeout(() => {
+    const query = DOM.shelfSearchInput.value.toLowerCase().trim();
+    const state = DOM.stateFilter.value;
+
+    let filtered = CURRENT_GENRE_BOOKS;
+
+    if (state) {
+      filtered = filtered.filter(b => b[STATE_FIELD] === state);
+    }
+
+    if (query.length >= 2) {
+      // Use pre-computed _searchText instead of Object.values() per book.
+      filtered = filtered.filter(b => b._searchText.includes(query));
+    }
+
+    renderShelfBooks(filtered);
+  }, 150);
+}
+
+function renderShelfBooks(books) {
+  DOM.shelfViewInner.innerHTML = '';
+
+  DOM.shelfSubtitle.textContent =
+    `${books.length} work${books.length !== 1 ? 's' : ''} · sorted by author last name`;
+
+  if (books.length === 0) {
+    DOM.shelfViewInner.innerHTML = '<div class="empty-state">No works match your filters</div>';
+    return;
+  }
+
+  const USE_SECTIONS = books.length > 15;
+
+  if (USE_SECTIONS) {
+    const sections = getAlphaSections(books);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target._rendered) {
+          entry.target._rendered = true;
+          const data = entry.target._bookData;
+          renderBooksIntoShelf(entry.target.querySelector('.bookshelf-container'), data);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '200px' });
+
+    sections.forEach((section, si) => {
+      const el = document.createElement('div');
+      el.className = 'alpha-section';
+      el.style.animationDelay = `${si * 0.04}s`;
+      el._bookData = section.books;
+
+      const label = document.createElement('div');
+      label.className = 'alpha-label';
+      label.textContent = `${section.letter}  ·  ${section.books.length} work${section.books.length !== 1 ? 's' : ''}`;
+
+      const shelf = document.createElement('div');
+      shelf.className = 'bookshelf-container';
+
+      el.appendChild(label);
+      el.appendChild(shelf);
+      DOM.shelfViewInner.appendChild(el);
+
+      if (si < 3) {
+        el._rendered = true;
+        renderBooksIntoShelf(shelf, section.books);
+      } else {
+        observer.observe(el);
+      }
+    });
+  } else {
+    const shelf = document.createElement('div');
+    shelf.className = 'bookshelf-container';
+    renderBooksIntoShelf(shelf, books);
+    DOM.shelfViewInner.appendChild(shelf);
+  }
+}
+
+function getAlphaSections(books) {
+  const sections = {};
+  books.forEach(book => {
+    const letter = (book._sortName[0] || '?').toUpperCase();
+    if (!sections[letter]) sections[letter] = [];
+    sections[letter].push(book);
+  });
+  return Object.keys(sections).sort().map(l => ({ letter: l, books: sections[l] }));
+}
+
+function renderBooksIntoShelf(container, books) {
+  const frag = document.createDocumentFragment();
+
+  books.forEach(book => {
+    const el = document.createElement('div');
+    el.className = 'book';
+    const color = getBookColor(CURRENT_GENRE, book);
+    el.style.height = getBookHeight(book.title) + 'px';
+    el.style.background = `linear-gradient(160deg, ${color}, ${adjustColor(color, -25)})`;
+    el.onclick = () => showBookDetail(book);
+
+    const spine = document.createElement('div');
+    spine.className = 'book-spine-text';
+    spine.textContent = book._sortName;
+
+    const deco = document.createElement('div');
+    deco.className = 'book-spine-decoration';
+
+    el.appendChild(spine);
+    el.appendChild(deco);
+    el.title = `${book.title} — ${book.author}`;
+    frag.appendChild(el);
+  });
+
+  container.appendChild(frag);
+}
+
+// ════════════════════════════════════════════════════════════
+//  BACK TO AISLE
+// ════════════════════════════════════════════════════════════
+function showAisle() {
+  DOM.shelfView.classList.add('hidden');
+  setTimeout(() => { DOM.shelfView.style.display = 'none'; }, 500);
+  DOM.aisleView.style.display = ''; DOM.aisleView.classList.remove('hidden');
+  DOM.globalSearch.value = '';
+  DOM.searchResultsView.classList.remove('active');
+  DOM.aisleScroll.style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ════════════════════════════════════════════════════════════
+//  BOOK DETAIL MODAL
+// ════════════════════════════════════════════════════════════
+function showBookDetail(book) {
+  DOM.modalGenre.textContent = book._genre || '';
+  DOM.modalTitle.textContent = book.title || '';
+  DOM.modalAuthor.textContent = book.author || '';
+
+  const details = DOM.modalDetails;
+  details.innerHTML = '';
+
+  // Define display order and labels from config
+  const shownKeys = new Set(['title', '_genre', '_sortName']);
+
+  POPUP_FIELDS.forEach(({ key, label, isLink }) => {
+    const val = book[key];
+    if (val === undefined || val === '') return;
+    shownKeys.add(key);
+
+    const row = document.createElement('div');
+    row.className = 'modal-detail-row';
+
+    if (isLink && val) {
+      const url = val.startsWith('http') ? val : 'https://' + val;
+      row.innerHTML = `
+        <span class="label">${escapeHtml(label)}</span>
+        <span class="value"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">View Text ↗</a></span>
+      `;
+    } else {
+      row.innerHTML = `
+        <span class="label">${escapeHtml(label)}</span>
+        <span class="value">${escapeHtml(String(val))}</span>
+      `;
+    }
+    details.appendChild(row);
+  });
+
+  // Show any extra custom fields not already shown
+  Object.keys(book).forEach(key => {
+    if (shownKeys.has(key) || key.startsWith('_')) return;
+    const val = book[key];
+    if (val === undefined || val === '') return;
+    const row = document.createElement('div');
+    row.className = 'modal-detail-row';
+    row.innerHTML = `
+      <span class="label">${escapeHtml(key)}</span>
+      <span class="value">${escapeHtml(String(val))}</span>
+    `;
+    details.appendChild(row);
+  });
+
+  DOM.modalOverlay.classList.add('active');
+}
+
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  DOM.modalOverlay.classList.remove('active');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ════════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
