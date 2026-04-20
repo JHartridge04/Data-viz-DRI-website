@@ -1,5 +1,5 @@
 ================================================================================
-  JAVASCRIPT OVERVIEW — bookshelf-final.html
+  JAVASCRIPT OVERVIEW — LibraryVisual.html
 ================================================================================
 
 This file is a single-page, self-contained library visualisation. All of the

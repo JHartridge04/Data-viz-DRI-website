@@ -1,11 +1,22 @@
-# DRI Library Bookshelf — Visual Editing Guide
+# DRI Library Bookshelf Visual Editing Guide
 
-This is a single self-contained HTML file (`bookshelf-final.html`) that renders a virtual library bookshelf from a CSV data file. This guide is written for people who want to change how the site **looks** without accidentally breaking how it **works**.
+The main application file is `LibraryVisual.html`. It renders the virtual library bookshelf and reads data from `assets/data/library-data.csv`.
+
+This guide is written for people who want to change how the site **looks** without accidentally breaking how it **works**.
 
 ---
 
-## How the Page Works (Plain English)
+## Project Structure (Current)
 
+- `LibraryVisual.html` — primary app file to open/edit
+- `assets/images/` — image assets used by the app
+- `assets/data/library-data.csv` — source CSV data file
+- `docs/` — supporting technical/reference documentation
+- `archive/html-variants/` — older HTML variants kept for reference
+
+---
+
+## How the Page Works
 When the page loads it fetches a CSV file, parses it, and builds three views on top of each other:
 
 1. **Loading Screen** — shown while data is being fetched
@@ -34,7 +45,7 @@ The file has three clearly separated sections you can navigate by searching:
 
 ---
 
-## The Color System — Your Primary Tool
+## The Color System 
 
 Almost every color on the site is defined in one place: the `:root` block near the top of the `<style>` section (around line 11). Changing a value here updates it everywhere on the page.
 
